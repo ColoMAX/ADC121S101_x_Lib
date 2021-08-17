@@ -1,6 +1,8 @@
 #ifndef ADC121S101x_HPP_15_08_2021
 #define ADC121S101x_HPP_15_08_2021
 
+/* Copyright Max Suurland 2021, all rights reserved*/
+
 #ifdef ARDUINO
 #ifndef ESP8266
 #error ONLY ESP8266 SUPPORTED in LIB
@@ -11,11 +13,7 @@
 #include <ADC121S101x_Native_debug.hpp>
 #endif
 
-
-static const constexpr float VERSION = 0.8;
-
-/* uncomment for debug support*/
-//#define EXT_ADC_DEBUG
+static const constexpr float ADC121S101x_VERSION = 0.8;
 
 #define BYTE_TO_BINARY(byte)       \
     (byte & 0x80 ? '1' : '0'),     \
@@ -44,9 +42,7 @@ get into sleepmode makes current sample invalid.
 
 */
 
-#define stringify( name ) # name
-
-
+#define stringify(name) #name
 
 enum CMD_type
 {
@@ -73,26 +69,23 @@ enum CMD_end_type
     EXT_ADC12_END_NONE
 };*/
 
-
-
 class ADC121S101x
 {
 private:
+    //#ifdef EXT_ADC_DEBUG
 
-#ifdef EXT_ADC_DEBUG
-#warning using debug, WHICH IS BUGGY BY ITSELF!
     // with help from https://forum.arduino.cc/t/printf-with-f-macro-how-did-i-do/221229
     void _p(const __FlashStringHelper *format, ...)
     {
         va_list args;
         va_start(args, format);
         char buf[128]; // resulting string limited to 128 chars
-#ifdef __AVR__
+#ifdef ARDUINO
         vsnprintf_P(buf, sizeof(buf), (const char *)format, args); // progmem for AVR
 #else
         vsnprintf(buf, sizeof(buf), (const char *)format, args); // for the rest of the world
 #endif
-        
+
         DEBUGPORT.print(buf);
         va_end(args);
     }
@@ -106,10 +99,11 @@ private:
         DEBUGPORT.print(F(">\n"));
         va_end(args);
     }
-
+#ifdef EXT_ADC_DEBUG
+#warning using debug, MACROS below have a memory bug!
+//the bug makes so that some va-args cannot be located properly and thus fails to print proper results.
 #define DBG_PRINTF(format, ...) _p(F(format), ##__VA_ARGS__)
 #define DBG_PRINTF_SHORT(format, ...) _ph(F(format), ##__VA_ARGS__)
-
 
 #else
 #define DBG_PRINTF(...)
@@ -131,52 +125,57 @@ private:
         uint32_t rawADC;
         uint8_t buff[2];
     };
-    bool is_shutdown;
 
+    bool is_shutdown;
+    uint16_t VREF;
+
+// if you want more control, make these public.
     inline void _start_cmds();
     inline void _end_cmds();
-
-    inline uint16_t _send_cmd(enum CMD_type cmdType);
+    inline uint16_t _send_cmd(enum CMD_type cmdType); 
 
     void swp_buff(uint8_t *buff)
     {
-
 #ifdef __BYTE_ORDER__
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         uint8_t tmp = buff[0];
         buff[0] = buff[1];
         buff[1] = tmp;
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-                                                                 // do nothing
+        // do nothing
 #else
 #error No implemetation yet
 #endif
 #else
-#ifndef ARDUINO
-#else
 #error DEFINE BYTEORDER
-#endif
 #endif
     };
 
 public:
-    ADC121S101x(const uint8_t CS_pin, bool start_sleep = false);
+    ADC121S101x(const uint8_t CS_pin, bool start_sleep = false, uint16_t supplyVoltage = 3300U);
     void begin();
 
     uint16_t send_cmd(enum CMD_type cmdType, bool sleep = false, uint8_t numCmds = 1);
 
     //uint16_t send_cmds(enum CMD_conversion_type CMD_c = EXT_ADC12_CONVERSION_NONE, enum CMD_end_type CMD_e = EXT_ADC12_END_NONE);
 
-    uint16_t single_shot();
-    uint16_t conversion();
-
-    void shutdown();
-    void wake_up();
+    uint16_t single_shot(); // ?wakeup, measure, sleep
+    uint16_t conversion(); //  ?wakeup, measure
+    int16_t analogRead(); //   ?wakeup, measure, compat-postprocess
+    
+    void shutdown(); // shutdown
+    void wake_up();  // ?wakeup
 
     uint16_t conversion_avg(uint8_t samples);
     bool get_shutdown_state();
 
+    uint16_t to_voltage();
+    uint16_t to_voltage(uint16_t rawADC);
+    float to_voltage_f();
+    float to_voltage_f(uint16_t rawADC);
+
     void printConversion(uint16_t ref);
+    void printConversion();
     ~ADC121S101x();
 };
 #endif

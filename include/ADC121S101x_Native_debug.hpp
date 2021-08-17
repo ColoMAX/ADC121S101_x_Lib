@@ -1,6 +1,6 @@
 #ifndef ADCS101x_NATIVE_DEBUG_HPP_18_08_2021
 #define ADCS101x_NATIVE_DEBUG_HPP_18_08_2021
-
+/* Copyright Max Suurland 2021, all rights reserved*/
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -9,8 +9,6 @@
 #define F(x) x
 #define __FlashStringHelper char
 #define myPinBit(myPin) myPin
-
-
 
 #define D3 3
 //#define OUTPUT 4

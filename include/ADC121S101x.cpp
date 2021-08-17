@@ -1,10 +1,5 @@
 #include <ADC121S101x.hpp>
-
-#ifndef ARDUINO
-int asdfgh = 0;
-SPI_ SPI;
-SER Serial;
-#endif
+/* Copyright Max Suurland 2021, all rights reserved*/
 
 #ifdef EXT_ADC_DEBUG
 const char * CMDSTRING[] ={ // TODO SHOUDL BE SAVED IN PROGMEM
@@ -17,12 +12,18 @@ stringify(ADC_NONE)
 };
 #endif
 
+#ifndef ARDUINO
+int asdfgh = 0;
+SPI_ SPI;
+SER Serial;
+#endif
+
 /*TODO SHOULD READ CURRENT MODE, NOW FORCES INPUT on CS_MODE IN DESTRUCTOR*/
-ADC121S101x::ADC121S101x(const uint8_t CS_pin, bool start_sleep) : CS_pin(CS_pin), CS_mode(CS_pin & 0x0), is_shutdown(start_sleep)
+ADC121S101x::ADC121S101x(const uint8_t CS_pin, bool start_sleep, uint16_t supplyVoltage) : CS_pin(CS_pin), CS_mode(CS_pin & 0x0), is_shutdown(start_sleep), VREF(supplyVoltage)
 {
-    #ifndef ARDUINO
+#ifndef ARDUINO
     printf("current constructor: pin: %u : %u Mode: %u : %u is_shutdown %u : %u\n", CS_pin, this->CS_pin, CS_pin & 0x0, this->CS_mode, start_sleep, is_shutdown);
-    #endif
+#endif
 }
 
 void ADC121S101x::begin()
@@ -37,12 +38,12 @@ void ADC121S101x::begin()
     if (this->is_shutdown)
     {
         DBG_PRINTF_SHORT("Initial Shutdown");
-        this->_send_cmd(SHUTDOWN); // BUG when only sending SHUTDOWN it actually sends WAKEUP
+        this->send_cmd(SHUTDOWN); // BUG when only sending SHUTDOWN it actually sends WAKEUP
     }
     else
     {
         DBG_PRINTF_SHORT("Initial Wakeup");
-        this->_send_cmd(WAKE_UP);
+        this->send_cmd(WAKE_UP);
     }
 }
 bool ADC121S101x::get_shutdown_state()
@@ -61,8 +62,8 @@ uint16_t ADC121S101x::send_cmd(enum CMD_type cmdType, bool go_shutdown, uint8_t 
 {
     //ADC121S101x::measurement
     //SPI.beginTransaction(SPISettings(SPICLCK, BITORDER, SPI_MODE2));
-        _start_cmds();
-    DBG_PRINTF_SHORT("State: %s", this->is_shutdown?"Shutdown":"awake");
+    _start_cmds();
+    DBG_PRINTF_SHORT("State: %s", this->is_shutdown ? "Shutdown" : "awake");
     DBG_PRINTF_SHORT("Starting general command: %s", CMDSTRING[cmdType]);
 
     if (cmdType != ADC_NONE && cmdType != SHUTDOWN && this->is_shutdown)
@@ -176,7 +177,7 @@ uint16_t ADC121S101x::_send_cmd(enum CMD_type cmdType)
 {
     union ADC121S101x_Measurement Measure;
     const uint32_t PINBIT = myPinBit(this->CS_pin);
-    DBG_PRINTF_SHORT("cmd send: %s", CMDSTRING[cmdType] );
+    DBG_PRINTF_SHORT("cmd send: %s", CMDSTRING[cmdType]);
 
     os_intr_lock();
     //WRITE_PERI_REG(ON, myPinBit(D1));
@@ -208,7 +209,11 @@ uint16_t ADC121S101x::single_shot()
 {
     return send_cmd(SINGLE_SHOT);
 }
-uint16_t ADC121S101x::conversion() { return send_cmd(CONVERSION); }
+
+uint16_t ADC121S101x::conversion()
+{
+    return send_cmd(CONVERSION);
+}
 
 void ADC121S101x::shutdown()
 {
@@ -234,8 +239,33 @@ inline void ADC121S101x::_end_cmds()
     SPI.endTransaction();
 };
 
+    uint16_t ADC121S101x::to_voltage(){
+        return to_voltage(measurement.rawADC);
+    }
+    uint16_t ADC121S101x::to_voltage(uint16_t rawADC){
 
-void ADC121S101x::printConversion(uint16_t ref){
+        return ((uint32_t)rawADC*VREF/(2<<12));
+    }
+    float ADC121S101x::to_voltage_f(){
+        #warning NOT TO SPEC of datasheet
+        return (float)to_voltage_f(measurement.rawADC);
+    }
+    float ADC121S101x::to_voltage_f(uint16_t rawADC){
+        #warning NOT TO SPEC of datasheet
+        return  ((uint16_t)to_voltage(rawADC))/1000.0f;
+    }
+
+void ADC121S101x::printConversion(uint16_t ref)
+{
     uint16_t rawADC = this->measurement.rawADC;
-    DEBUGPORT.printf("SPI adc reading = %c%c%c %c %c%c%c%c %c%c%c%c %c%c%c%c\t%u count \t%u mV\n",BYTE_TO_BINARY(rawADC>>8), BYTE_TO_BINARY(rawADC),rawADC,/*ESP.getVcc()*/ref*rawADC/(2<<12) );
+    DEBUGPORT.printf("SPI adc reading = %c%c%c %c %c%c%c%c %c%c%c%c %c%c%c%c\t%u count \t%u mV\n", BYTE_TO_BINARY(rawADC >> 8), BYTE_TO_BINARY(rawADC), rawADC, /*ESP.getVcc()*/ ref * rawADC / (2 << 12));
+}
+void ADC121S101x::printConversion()
+{
+    printConversion(VREF);
+}
+
+int16_t ADC121S101x::analogRead(){
+    uint16_t rawADC = send_cmd(CONVERSION) & 0x1FFF;
+    return (int16_t) rawADC;
 }

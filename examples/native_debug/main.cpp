@@ -19,7 +19,6 @@ void setup()
 #else
 int main()
 {
-  printf("check\n");
 #endif
   // put your setup code here, to run once:
   Serial.begin(250000);
