@@ -1,0 +1,44 @@
+{
+    "name": "ADC121S101x",
+    "version": "0.8.1",
+    "description": "simple C and C++ SPI ADC interface driver for Texas Intrstruments (TI) ADC121S101x Fast ADC's",
+    "keywords": "adc,analog,spi,adc121s101,ti,qspi,microwire,dsp,esp8266,native,driver",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/ColoMAX/ADC121S101_x_Lib"
+    },
+    "Authors": {
+        "name": "Max Suurland",
+        "email": "max.suurland@gmail.com",
+        "maintainer": false
+    },
+    "frameworks": [
+        "arduino"
+    ],
+    "platforms": [
+        "native",
+        "espressif8266"
+    ],
+    "examples": [
+        {
+            "name": "Hello ADC features",
+            "base": "examples/feature_show",
+            "files": [
+                "features.cpp",
+                "../../platformio.ini"
+            ]
+        },
+        {
+            "name": "native esp8266 debug",
+            "base": "examples/native_debug",
+            "files": [
+                "main.cpp",
+                "../../platformio.ini"
+            ]
+        }
+    ],
+    "build": {
+        "libCompatMode": "strict"
+    },
+    "exclude":["Makefile", "*.tar.gz"]
+}
